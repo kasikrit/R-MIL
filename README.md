@@ -49,8 +49,13 @@ The datasets generated and/or analyzed during the current study are not publicly
 
 ## R-MIL Pipeline Execution
 
+### 0. Trained Baseline Models of Dataset 2025 as Feature Extractors
+Download the trained baseline models (ConvNeXtLarge) at [Figshare](https://doi.org/10.6084/m9.figshare.32101114) and locate at C.BASEMODEL_PATH
+
+To build your own feature extractors using a custom dataset, execute the baseline training pipeline `basemodel-train-20251130.py` using the settings defined in `configsAneTunedHP_2.py`.
+
 ### 1. Configure Pipeline Parameters
-Modify the architectural parameters, learning rates, and directory paths via the central `config.py` file utilizing `yacs`.
+Modify the architectural parameters, learning rates, and directory paths via the central `configsCell_mil_stage2.py` file utilizing `yacs`.
 
 ```python
 #!/usr/bin/env python3
