@@ -1,9 +1,9 @@
-# R-MIL: Riemann Geometry-Inspired Multiple Instance Learning for Hematopathology
+# Geometry-Constrained AI Pipeline with Clinical Abstention for Differentiating Anemia Subtypes
 
 This repository contains the official implementation of the hybrid AI framework integrating **Riemann Geometry-inspired Multiple Instance Learning (R-MIL)**. The system is designed to provide aleatoric noise protection and clinical abstention (triage) for the automated screening of Iron Deficiency Anemia (IDA) and Thalassemia (THL).
 
-> **Paper Title:** Safety-First Hematological Screening: A Geometry-Constrained AI Pipeline with Clinical Abstention for Differentiating Iron Deficiency Anemia and Thalassemia  
-> **Journal:** Pattern Analysis and Applications (Submitted)  
+> **Paper Title:** Geometry-Constrained AI Pipeline with Clinical Abstention for Differentiating Anemia Subtypes  
+> **Journal:** Applied Intelligence (Submitted)  
 > **Citation:** *Pending*
 
 ## Abstract
@@ -45,7 +45,7 @@ pip install pandas numpy scikit-learn matplotlib seaborn yacs tqdm opencv-python
 
 ## Available Dataset
 
-The datasets generated and/or analyzed during the current study are not publicly available as they are being utilized for ongoing and future research, but are available from the corresponding author on reasonable request. However, a related dataset with similar attributes is publicly accessible at [https://github.com/kasikrit/IDA-THL-Classification/](https://github.com/kasikrit/IDA-THL-Classification/).
+The datasets generated and/or analyzed during the current study is not publicly available at [https://doi.org/10.6084/m9.figshare.32243310](https://doi.org/10.6084/m9.figshare.32243310).
 
 ## R-MIL Pipeline Execution
 
