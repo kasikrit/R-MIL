@@ -3,27 +3,23 @@
 import sys
 import os
 import platform
-import time
 import gc
 import json
 import warnings
 from datetime import datetime
 from pathlib import Path
-from collections import defaultdict, Counter
 
 import numpy as np
 import pandas as pd
 import cv2
 import matplotlib.pyplot as plt
 import seaborn as sns
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 from natsort import natsorted
-from tqdm import tqdm
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import models, layers, optimizers, Model
+from tensorflow.keras import optimizers
 from tensorflow.keras.callbacks import ModelCheckpoint
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.model_selection import train_test_split, StratifiedKFold, StratifiedShuffleSplit
@@ -379,7 +375,9 @@ train_df = df[df['patient_id'].isin(train_patients)]
 test_df = df[df['patient_id'].isin(test_patients)]
 
 train_patient_labels = train_df.groupby('patient_id')['label'].first()
-skf = StratifiedKFold(n_splits=config.DATA.N_SPLIT, shuffle=True, random_state=config.DATA.SEED)
+skf = StratifiedKFold(n_splits=config.DATA.N_SPLIT,
+                      shuffle=True,
+                      random_state=config.DATA.SEED)
 
 train_df_fold_list = []
 val_df_fold_list = []
@@ -470,7 +468,7 @@ for fold in train_folds:
         
     models_per_fold = []
     for model_name in config['MODEL']['NAMES']:    
-        train_log = config.BASE + '-' + f"{config.DATASET_YEAR}-SEED-{config.DATA.SEED}-Fold-{fold}-cellseg-{model_name}-classweights-{config['TRAIN']['DATETIME']}"
+        train_log = config.BASE + '-' + f"Data2025-SEED-{config.DATA.SEED}-Fold-{fold}-cellseg-{model_name}-classweights-{config['TRAIN']['DATETIME']}"
         
         if config['SAVE'] == True:            
             os.makedirs(train_log, exist_ok=True)
@@ -479,7 +477,6 @@ for fold in train_folds:
             with open(json_file_path, 'w') as json_file:    
                 json.dump(cfg_dict, json_file, indent=4)            
                                         
-        from PatchDatasetPreserve import PatchDatasetPreserve
         train_df_fold = train_df_fold.sample(frac=1, random_state=config.DATA.SEED).reset_index(drop=True)
         train_df_fold_sampled = stratified_subsample(train_df_fold, config['TRAIN']['SAMPLE_SIZE']) if config['TRAIN']['SAMPLE'] else train_df_fold
         
@@ -515,7 +512,8 @@ for fold in train_folds:
         class_weights = compute_class_weight(class_weight='balanced', classes=labels, y=train_df_fold['label'])
         class_weight_dict = dict(enumerate(class_weights))
         class_weight_list.append(class_weight_dict)
-                
+        
+        #%%      
         if config.TRAIN.TL:
             if model_name == 'ConvNeXtLarge':
                 backup_model_best_for_TL = os.path.join(config.BASEMODEL_PATH, 'Linux-AneRBC-ConvNeXtLarge-BGR-20250327-1542.hdf5')
@@ -525,25 +523,28 @@ for fold in train_folds:
             with custom_object_scope({'LayerScale': LayerScale}):
                 loaded_model = tf.keras.models.load_model(backup_model_best_for_TL)  
             print_model_summary(loaded_model)   
-                    
-        from ModelBuilder import CustomConvNeXtWithHeadL2
-        model_builder = CustomConvNeXtWithHeadL2(
+            
+        #%%          
+        from ModelBuilder import CustomConvNeXtWithHeadL2_Bag
+
+        model_builder = CustomConvNeXtWithHeadL2_Bag(
             model_name=model_name,
-            input_shape=config.DATA.DIMENSION,
+            input_shape=(None,) + config.DATA.DIMENSION,  # <-- FIX: Prepend (None,) for the bag dimension
             num_classes=config.MODEL.NUM_CLASSES,
             dense_units=[128, 64, 32, 16, 8],
             activation=config.TRAIN.ACTIVATION,
             dropout_rate=config.TRAIN.DROPOUT,
         )
-
-        model = model_builder.build_model(freeze_backbone=True, add_l2=True)
+        
+        model, base_model = model_builder.build_model(freeze_backbone=True, add_l2=True)
         if config.TRAIN.TL:
             model_builder.copy_weights_from(loaded_model, max_layer_index=296)
             del loaded_model
             reset_vram()
             
         print_model_summary(model)
-                
+        
+        #%%        
         class GradualUnfreeze(tf.keras.callbacks.Callback):
             def __init__(self, model, unfreeze_schedule: dict, optimizer_spec=None, factor=0.7, patience=4, min_lr=1e-7, warm_restart_factor=1.2, verbose=True):
                 super().__init__()
@@ -714,7 +715,8 @@ for fold in train_folds:
             if platform.system() == 'Darwin' or platform.system() == 'Windows':
                 from livelossplot import PlotLossesKeras
                 callbacks_list.append(PlotLossesKeras())
-
+            
+            #%%
             with tf.device('/device:GPU:0'):
                 history = model.fit(
                     train_gen,  
@@ -723,8 +725,8 @@ for fold in train_folds:
                     verbose = config.TRAIN.verbose,
                     class_weight=class_weight_dict,
                     callbacks = callbacks_list,
-                    workers=8,  
-                    use_multiprocessing=True
+                    workers= 8 if platform.system() == 'Linux' else 0,  
+                    use_multiprocessing=True if platform.system() == 'Linux' else False,
                     )
                 
             t_train_end = datetime.now() - t_train_start
@@ -754,15 +756,13 @@ for fold in train_folds:
                 plot_manual_learning_rates_with_loss(history_df=history_df, train_log=train_log, include_loss=False)
                 plot_manual_learning_rates_with_loss(history_df=history_df, train_log=train_log, include_loss=True)
             
-            from keras.utils import custom_object_scope
-            from keras.applications.convnext import LayerScale 
             
             if config.TRAIN.Evaluate_Val:          
                if config.PILOT:
                     if platform.system() == 'Windows':  
                         backup_model_best = "D:\THL-g\models\Linux-Fold-0-cellseg-stage2-ConvNeXtLarge-classweights-20251228-2306.hdf5"
-                    else:
-                        backup_model_best = 'models/Linux-Fold-0-stage2-ConvNeXtLarge-bal-aug-20251023-1259.hdf5'
+                    # else:
+                    #     backup_model_best = 'models/Linux-Fold-0-stage2-ConvNeXtLarge-bal-aug-20251023-1259.hdf5'
                     
                best_model = model_builder.build_model(freeze_backbone=True, add_l2=True)
                if 'ConvNeXt' in backup_model_best:
@@ -809,6 +809,285 @@ for fold in train_folds:
         if 'model' in locals() or 'model' in globals():
             del model
             reset_vram()
-
+            
+#%%
+if config.Evaluate_Test:
+    from sklearn.covariance import EmpiricalCovariance
+    
+    def calibrate_euclidean_mahalanobis(feature_matrix):
+        """
+        Fits the Euclidean Mahalanobis parameters using extracted training features.
+        
+        Args:
+            feature_matrix: Numpy array of shape (Num_Patches, Feature_Dim). 
+                            For ConvNeXtLarge, Feature_Dim is 1536.
+        Returns:
+            mu: Mean feature vector.
+            prec: Inverse covariance matrix (Precision matrix).
+        """
+        print("Fitting Empirical Covariance Matrix...")
+        # Use sklearn to calculate covariance robustly (handles numerical instability)
+        cov_estimator = EmpiricalCovariance(assume_centered=False)
+        cov_estimator.fit(feature_matrix)
+        
+        mu = cov_estimator.location_
+        prec = cov_estimator.precision_ # This is \Sigma^{-1}
+        
+        return mu, prec
+    
+    def apply_euclidean_qc_gate(bag_features, mu, prec, threshold):
+        """
+        Filters a bag of patch features using Euclidean Mahalanobis distance.
+        
+        Args:
+            bag_features: tf.Tensor of shape (Num_Patches, Feature_Dim)
+            mu: Numpy array (Feature_Dim,)
+            prec: Numpy array (Feature_Dim, Feature_Dim)
+            threshold: Float threshold (\tau_limit)
+            
+        Returns:
+            filtered_features: tf.Tensor of patches that passed QC
+        """
+        # Convert numpy parameters to tensors
+        mu_tensor = tf.cast(tf.constant(mu), tf.float32)
+        prec_tensor = tf.cast(tf.constant(prec), tf.float32)
+        
+        # Center the features: (x - \mu)
+        centered_features = bag_features - mu_tensor # Shape: (N, d)
+        
+        # Compute Mahalanobis distance: sqrt((x-\mu)^T \Sigma^{-1} (x-\mu))
+        # Matrix multiplication: (N, d) @ (d, d) -> (N, d)
+        left_term = tf.matmul(centered_features, prec_tensor) 
+        
+        # Dot product with itself for each patch: sum(left_term * centered_features, axis=1)
+        squared_dist = tf.reduce_sum(left_term * centered_features, axis=1)
+        mahalanobis_dist = tf.sqrt(tf.maximum(squared_dist, 1e-9)) # Shape: (N,)
+        
+        # Create binary mask: True if distance < threshold
+        mask = mahalanobis_dist < threshold
+        
+        # Filter the bag
+        filtered_features = tf.boolean_mask(bag_features, mask)
+        
+        return filtered_features
+    
+    #%% --- Euclidean Ensemble Configuration & Setup ---
+    import csv
+    
+    # ---------------------------------------------------------
+    # 1. Euclidean Workflow Configuration
+    # ---------------------------------------------------------
+    EUCLIDEAN_WORKFLOW_CONFIG = {
+        "FOLDS": range(config.DATA.N_SPLIT), # Evaluate across all 5 folds
+        
+        # Triage Thresholds (M3) - Use exact thresholds as M6 for fair comparison
+        "THRESHOLDS": {
+            "CONFIDENT_THL": 0.5463,  
+            "CONFIDENT_IDA": 0.4900   
+        }
+    }
+    
+    euclidean_backbones_map = {}
+    euclidean_attention_map = {}
+    euclidean_calib_map = {} # To store mu, prec, and tau_limit per fold
+    
+    #%% --- Phase 1: 5-Fold Euclidean QC Calibration ---
+    print("\n" + "="*50 + "\nCALIBRATING EUCLIDEAN MAHALANOBIS GATE (5 FOLDS)\n" + "="*50)
+    
+    for fold in EUCLIDEAN_WORKFLOW_CONFIG["FOLDS"]:
+        print(f"\n--- Calibrating Fold {fold} ---")
+        
+        # 1. Load the trained Euclidean components for this fold
+        euclidean_backbones_map[fold] = load_euclidean_extractor(fold, config.BASEMODEL_PATH)
+        euclidean_attention_map[fold] = load_attention_mil_head(fold, config.MODEL_PATH)
+          
+        # 2. Extract Training Features (Calculate mu & prec)
+        print("  > Extracting training features...")
+        train_features_list = []
+        for idx, row in train_df_fold_list[fold].iterrows():
+            patch = preprocessing_fn(cv2.imread(row['patch_path']))
+            patch = np.expand_dims(patch, axis=0) 
+            train_features_list.append(euclidean_backbones_map[fold].predict(patch, verbose=0)[0])
+            
+        train_matrix = np.array(train_features_list)
+        mu, prec = calibrate_euclidean_mahalanobis(train_matrix)
+        
+        # 3. Extract Validation Features (Calibrate tau_limit)
+        print("  > Extracting validation features for threshold calibration...")
+        val_features_list = []
+        for idx, row in val_df_fold_list[fold].iterrows():
+            patch = preprocessing_fn(cv2.imread(row['patch_path']))
+            patch = np.expand_dims(patch, axis=0) 
+            val_features_list.append(euclidean_backbones_map[fold].predict(patch, verbose=0)[0])
+            
+        val_matrix = np.array(val_features_list)
+        
+        # Compute distances to find 95th percentile
+        mu_tensor = tf.cast(tf.constant(mu), tf.float32)
+        prec_tensor = tf.cast(tf.constant(prec), tf.float32)
+        centered_val = val_matrix - mu_tensor
+        left_term = tf.matmul(centered_val, prec_tensor)
+        val_distances = tf.sqrt(tf.maximum(tf.reduce_sum(left_term * centered_val, axis=1), 1e-9)).numpy()
+        
+        tau_limit = np.percentile(val_distances, 95)
+        print(f"  [Fold {fold} Calibrated] TAU_LIMIT: {tau_limit:.4f}")
+        
+        # 4. Store fold calibration data
+        euclidean_calib_map[fold] = {
+            'mu': mu,
+            'prec': prec,
+            'tau_limit': tau_limit
+        }
+    
+    #%% --- Phase 2: Euclidean Ensemble Inference (M1, M2, M3) ---
+    def predict_euclidean_workflow(patches, backbone, attention_head, mu, prec, tau_limit, apply_qc=True):
+        """Processes a patient bag through a single Euclidean fold pipeline."""
+        raw_features = backbone(patches, training=False) 
+        
+        if apply_qc:
+            clean_features = apply_euclidean_qc_gate(raw_features, mu, prec, tau_limit)
+        else:
+            clean_features = raw_features
+            
+        n_raw = tf.shape(raw_features)[0].numpy()
+        n_clean = tf.shape(clean_features)[0].numpy()
+        
+        if n_clean == 0:
+            return None, 0, n_raw
+            
+        bag_features = tf.expand_dims(clean_features, axis=0)
+        patient_prediction = attention_head(bag_features, training=False) 
+        
+        prob_thl = patient_prediction[0, 1].numpy()
+        return prob_thl, n_clean, n_raw
+    
+    print(f"\n{'='*50}\nSTARTING 5-FOLD EUCLIDEAN INFERENCE (M1, M2, M3)\n{'='*50}")
+    
+    # Data Preparation
+    from FullBagDataset import FullBagDataset
+    inference_gen = FullBagDataset(
+        config,
+        df=test_df_sampled, # Independent Test Set
+        preprocessing_function=preprocessing_fn,
+        expect_rgba=True,
+        bg_color=(0, 0, 0),
+        mode='test',
+    )
+    
+    euclidean_results_data = []  
+    
+    for patient_idx in range(len(inference_gen)):
+        p_ids, labels_raw, X_bag_batch, labels_onehot = inference_gen.__getitem__(
+            idx=patient_idx, get_pids=True
+        )
+        current_pid = p_ids[0]
+        true_label = int(labels_raw[0])      
+        patches = X_bag_batch[0] 
+        
+        print(f"\n--- Processing {patient_idx+1}/{len(inference_gen)}: {current_pid} (True: {true_label}) ---")
+    
+        m1_fold_probs = []
+        m2_fold_probs = []
+        m2_clean_counts = []
+        n_raw_total = patches.shape[0]
+    
+        # Iterate through all 5 folds for this specific patient
+        for fold in EUCLIDEAN_WORKFLOW_CONFIG["FOLDS"]:
+            backbone = euclidean_backbones_map[fold]
+            attention = euclidean_attention_map[fold]
+            calib = euclidean_calib_map[fold]
+    
+            # M1: Vanilla Euclidean (No QC)
+            prob_m1, _, _ = predict_euclidean_workflow(
+                patches, backbone, attention, calib['mu'], calib['prec'], calib['tau_limit'], apply_qc=False
+            )
+            m1_fold_probs.append(prob_m1)
+            
+            # M2: Euclidean + QC
+            prob_m2, n_clean_m2, _ = predict_euclidean_workflow(
+                patches, backbone, attention, calib['mu'], calib['prec'], calib['tau_limit'], apply_qc=True
+            )
+            if prob_m2 is not None:
+                m2_fold_probs.append(prob_m2)
+                m2_clean_counts.append(n_clean_m2)
+    
+        # -----------------------------------------------------
+        # Ensemble Aggregation (Average the fold probabilities)
+        # -----------------------------------------------------
+        final_prob_m1 = np.mean(m1_fold_probs)
+        
+        if m2_fold_probs:
+            final_prob_m2 = np.mean(m2_fold_probs)
+            avg_clean_m2 = int(np.mean(m2_clean_counts))
+        else:
+            final_prob_m2 = None
+            avg_clean_m2 = 0
+    
+        # -----------------------------------------------------
+        # Tri-State Decision Logic (M3 Abstention on M2 Ensemble)
+        # -----------------------------------------------------
+        t_upper = EUCLIDEAN_WORKFLOW_CONFIG["THRESHOLDS"]["CONFIDENT_THL"]
+        
+        if final_prob_m2 is None:
+            diagnosis_m3 = "QC Failed (All patches dropped)"
+            status_m3 = "ABSTAIN"
+            pred_class_m3 = -1
+        elif final_prob_m2 >= t_upper:
+            diagnosis_m3 = "THL"
+            status_m3 = "POSITIVE (High Confidence)"
+            pred_class_m3 = 1
+        else:
+            diagnosis_m3 = "Screen Negative (Likely IDA)"
+            status_m3 = "NEGATIVE (Rule-Out)"
+            pred_class_m3 = 0
+    
+        print(f"   > M1 (No QC Ensemble) Prob: {final_prob_m1:.4f}")
+        print(f"   > M2 (w/ QC Ensemble) Prob: {final_prob_m2:.4f} | Avg Retained Patches: {avg_clean_m2}/{n_raw_total}")
+        print(f"   > M3 (Triage Ensemble) Result: {diagnosis_m3}")
+    
+        # -----------------------------------------------------
+        # Logging
+        # -----------------------------------------------------
+        euclidean_results_data.append({
+            "patient_id": current_pid,
+            "true_label": true_label,
+            
+            # M1 Metrics
+            "M1_prob_thl": final_prob_m1,
+            "M1_pred_class": 1 if final_prob_m1 >= 0.5 else 0,
+            
+            # M2 Metrics
+            "M2_prob_thl": final_prob_m2,
+            "M2_pred_class": 1 if (final_prob_m2 is not None and final_prob_m2 >= 0.5) else 0,
+            
+            # M3 Metrics (with Triage)
+            "M3_predicted_class": pred_class_m3,
+            "M3_diagnosis_text": diagnosis_m3,
+            "M3_status": status_m3,
+            
+            # QC Stats
+            "total_patches": n_raw_total,
+            "avg_accepted_patches_M2": avg_clean_m2,
+            "avg_rejected_patches_M2": n_raw_total - avg_clean_m2 if final_prob_m2 is not None else n_raw_total,
+            "rejection_rate": f"{((n_raw_total - avg_clean_m2) / n_raw_total):.4f}" if final_prob_m2 is not None else "1.0000"
+        })
+    
+    # ---------------------------------------------------------
+    # 7. Save Output
+    # ---------------------------------------------------------
+    if euclidean_results_data:
+        csv_path = os.path.join(config.SAVE_PATH, "Euclidean_Ensemble_Ablation_M1_M2_M3_Results.csv")
+        try:
+            with open(csv_path, 'w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=euclidean_results_data[0].keys())
+                writer.writeheader()
+                writer.writerows(euclidean_results_data)
+            print(f"\n[IO] Euclidean Ensemble Ablation Report saved: {csv_path}")
+        except Exception as e:
+            print(f"[Error] {e}")
+            
+#%%
 t2 = datetime.now() - t1
 print('\nAll execution time: ', t2)
+
+#%%

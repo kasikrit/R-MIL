@@ -1185,8 +1185,31 @@ class CustomConvNeXtWithHeadL2:
 
 #%%
 import tensorflow as tf
-from tensorflow.keras import layers, models, applications, regularizers
+from tensorflow.keras import layers
 
+class AttentionMIL(layers.Layer):
+    """
+    Standard Attention-based MIL layer for the Euclidean baseline.
+    """
+    def __init__(self, L_dim=256, **kwargs):
+        super(AttentionMIL, self).__init__(**kwargs)
+        self.L_dim = L_dim
+        self.V = layers.Dense(L_dim, activation='tanh', name='attention_V')
+        self.w = layers.Dense(1, activation=None, use_bias=False, name='attention_w')
+
+    def call(self, inputs):
+        # inputs shape: (Batch, Num_Patches, Features)
+        attention = self.V(inputs)
+        attention_scores = self.w(attention)
+        attention_weights = tf.nn.softmax(attention_scores, axis=1)
+        weighted_features = inputs * attention_weights
+        return tf.reduce_sum(weighted_features, axis=1)
+
+    def get_config(self):
+        config = super(AttentionMIL, self).get_config()
+        config.update({"L_dim": self.L_dim})
+        return config
+        
 class CustomConvNeXtWithHeadL2_Bag:
     """
     Bag-level MIL classifier using ConvNeXt as patch encoder + Dense aggregation head.
@@ -1255,7 +1278,9 @@ class CustomConvNeXtWithHeadL2_Bag:
 
         # 6. Bag Pooling (Aggregate patches)
         # Output shape: (Batch, 1536)
-        bag_feature = layers.GlobalAveragePooling1D(name="bag_pooling")(patch_features)
+        # bag_feature = layers.GlobalAveragePooling1D(name="bag_pooling")(patch_features)
+        #Revise 2026-08-27
+        bag_feature = AttentionMIL(L_dim=256, name="attention_mil_pooling")(patch_features)
 
         # 7. Dense Head
         x = bag_feature
