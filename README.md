@@ -1,28 +1,20 @@
-# Geometry-Constrained AI Pipeline with Clinical Abstention for Differentiating Anemia Subtypes
+# A Geometry-Constrained Multiple-Instance Learning Pipeline with Clinical Abstention for Differentiating Iron Deficiency Anemia and Thalassemia on Peripheral Blood Smears
 
 This repository contains the official implementation of the hybrid AI framework integrating **Riemann Geometry-inspired Multiple Instance Learning (R-MIL)**. The system is designed to provide aleatoric noise protection and clinical abstention (triage) for the automated screening of Iron Deficiency Anemia (IDA) and Thalassemia (THL).
 
-> **Paper Title:** Geometry-Constrained AI Pipeline with Clinical Abstention for Differentiating Anemia Subtypes  
+<!-- > **Paper Title:** Geometry-Constrained AI Pipeline with Clinical Abstention for Differentiating Anemia Subtypes  -->
 > **Journal:** Applied Intelligence (Submitted)  
 > **Citation:** *Pending*
 
 ## Abstract
 
-**Background:** Efficient screening for Iron Deficiency Anemia (IDA) and Thalassemia (THL) is currently hindered by the labor-intensive nature of manual blood smear analysis.
-
-**Objective:** We present a weakly supervised Riemannian Multiple Instance Learning (R-MIL) framework for automated differentiation using a dataset of 159 patients (111 for training and 48 for unseen testing).
-
-**Method:** The architecture employs a two-stage process: manifold curvature energy calibration followed by ensemble-based inference with geometry-constrained aggregation. A critical innovation is the integration of an uncertainty-aware triage mechanism that identifies artifact-compromised cases.
-
-**Results:** The R-MIL approach achieved 0.94 accuracy and 0.96 sensitivity. The system demonstrated exceptional specificity for IDA, providing definitive diagnostic confidence that reduces redundant laboratory testing and patient costs. Statistical validation confirms that the triage logic safely defers artifact-compromised cases to human review instead of forcing low-confidence predictions.
-
-**Conclusion:** By actively managing diagnostic uncertainty, this architecture serves as a highly reliable, confidence-aware screening tool with significant potential to optimize workflows in resource-limited clinical settings.
+Manual blood smear analysis for differentiating Iron Deficiency Anemia (IDA) and Thalassemia (THL) is labor-intensive. We present a weakly supervised Riemannian Multiple Instance Learning (R-MIL) framework for automated differentiation using a dataset of 159 patients (111 training, 48 unseen testing). The architecture employs a two-stage process combining manifold curvature energy calibration with ensemble-based inference and geometry-constrained aggregation. To manage weak-label noise and morphological artifacts, we introduce a curvature-aware triage mechanism that isolates highly confident predictions while deferring anomalous out-of-distribution (OOD) or uncertain cases to expert review. On the independent test cohort, the triage system achieved an autonomous resolution rate (coverage) of 64.6\%. Within this high-confidence subset, the framework yielded an accuracy of 0.87, a sensitivity of 1.00 for THL, and a Negative Predictive Value (NPV) of 1.00. Statistical validation confirmed that the abstention logic successfully isolated ambiguous morphology without disrupting the predictive capability of straightforward cases. By actively managing uncertainty, this architecture serves as a highly reliable human-in-the-loop decision support tool with the potential to optimize clinical screening workflows in resource-limited settings.
 
 ## Hardware and Software Specifications
 
 * **Python Version:** 3.9.16
 * **TensorFlow Version:** 2.11.0 *(Utilized for CNN backbone feature extraction)*
-* **PyTorch Version:** 1.13.0 *(Utilized for Q-MIL head, quantum latent projections, and gradient computation)*
+<!-- * **PyTorch Version:** 1.13.0 *(Utilized for Q-MIL head, quantum latent projections, and gradient computation)* -->
 
 ## Creating a Python Environment
 
@@ -39,7 +31,6 @@ Ensure to install the correct PyTorch wheels for your specific CUDA version (e.g
 
 ```bash
 pip install tensorflow==2.11.0
-pip install torch==1.13.0 torchvision torchaudio
 pip install pandas numpy scikit-learn matplotlib seaborn yacs tqdm opencv-python Pillow
 ```
 
