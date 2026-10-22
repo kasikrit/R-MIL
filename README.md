@@ -4,7 +4,7 @@ This repository contains the official implementation of the hybrid AI framework 
 
 <!-- > **Paper Title:** Geometry-Constrained AI Pipeline with Clinical Abstention for Differentiating Anemia Subtypes  -->
 > **Journal:** Applied Intelligence (Accepted)  
-> **Citation:** *Article in press*
+> **Citation:** *pending*
 
 ## Abstract
 
