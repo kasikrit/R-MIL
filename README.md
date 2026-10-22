@@ -40,7 +40,7 @@ pip install pandas numpy scikit-learn matplotlib seaborn yacs tqdm opencv-python
 
 The segmented red-blood-cell images are published on figshare:
 
-- **DOI:** [10.6084/m9.figshare.32788653](https://doi.org/10.6084/m9.figshare.32788653) (active once the item is published)
+- **DOI:** [10.6084/m9.figshare.32788653](https://doi.org/10.6084/m9.figshare.32788653)
 - **Files:** six zip parts, each under 3 GB, plus `MD5SUMS.txt` and `README_parts.txt`. Download all six and extract them into **one folder** to rebuild the dataset:
   ```bash
   for f in IDA-THL-Segmented-Cells-02-2026_part*.zip; do unzip -q "$f"; done
