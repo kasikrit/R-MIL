@@ -3,8 +3,8 @@
 This repository contains the official implementation of the hybrid AI framework integrating **Riemann Geometry-inspired Multiple Instance Learning (R-MIL)**. The system is designed to provide aleatoric noise protection and clinical abstention (triage) for the automated screening of Iron Deficiency Anemia (IDA) and Thalassemia (THL).
 
 <!-- > **Paper Title:** Geometry-Constrained AI Pipeline with Clinical Abstention for Differentiating Anemia Subtypes  -->
-> **Journal:** Applied Intelligence (Submitted)  
-> **Citation:** *Pending*
+> **Journal:** Applied Intelligence (Accepted)  
+> **Citation:** *Article in press*
 
 ## Abstract
 
@@ -34,23 +34,47 @@ pip install tensorflow==2.11.0
 pip install pandas numpy scikit-learn matplotlib seaborn yacs tqdm opencv-python Pillow
 ```
 
-## Available Dataset
+## Data
 
-<!--The datasets generated and/or analyzed during the current study is not publicly available as they are being utilized for ongoing and future research, but are available from the corresponding author on reasonable request. However, a related dataset with similar attributes is publicly accessible at [https://github.com/kasikrit/IDA-THL-Classification/](https://github.com/kasikrit/IDA-THL-Classification/). -->
+### Cell images (public)
 
-The datasets generated and/or analyzed during the current study is publicly available at [IDA-THL-Segmented-Cells-02-2026.zip](https://drive.google.com/file/d/1KngK2-LlFnbZLm-R34gK1aNkKu4FGmEw/view?usp=sharing).
+The segmented red-blood-cell images are published on figshare:
 
-⠀**Data Structure**
-The dataset composed of 258 unique patients and hierarchically organized within the root directory IDA-THL-Segmented-Cells to facilitate patient-level Multiple Instance Learning (MIL). The structure follows a strict Class -> Patient -> Slide -> Cell schema:
-* 0/ **and** 1/ **(Class Labels):** The top-level directories represent the binary classification ground truth at the patient level.
-  * 0: Iron Deficiency Anemia (IDA) cases.
-  * 1: Thalassemia (THL) cases.
-* [Patient_ID]/ **(e.g.,** IDA-001**,** THL-001**):** Distinct folders for each unique patient, ensuring that cross-validation splits can maintain strict mutual exclusivity at the patient level.
-* cells/**:** A sub-directory containing the extracted cellular data for that specific patient.
-* [Source_Image_ID]/ **(e.g.,** DSC10132**):** Folders corresponding to the specific peripheral blood smear slide or original microscopic field of view from which the cells were cropped.
-* **Segmented Cell Images (**.png**):** The individual red blood cell (RBC) patches. The file naming convention is strictly formatted as [Patient_ID]-[Source_Image_ID]-[Cell_Index].png (e.g., IDA-001-DSC10132-001.png), allowing for complete traceability back to the original slide.
+- **DOI:** [10.6084/m9.figshare.32788653](https://doi.org/10.6084/m9.figshare.32788653) (active once the item is published)
+- **Files:** six zip parts, each under 3 GB, plus `MD5SUMS.txt` and `README_parts.txt`. Download all six and extract them into **one folder** to rebuild the dataset:
+  ```bash
+  for f in IDA-THL-Segmented-Cells-02-2026_part*.zip; do unzip -q "$f"; done
+  ```
+- **Contents:** 291 patient folders (151 iron deficiency anemia, 140 thalassemia) from 281 patients, with 261,087 cell images.
 
-⠀**MD5 (IDA-THL-Segmented-Cells-02-2026.zip) = d2f896c59984890baaeb5e21253061e0**
+| Part | File | Patients | Size | MD5 |
+|---|---|---|---|---|
+| 1 | `IDA-THL-Segmented-Cells-02-2026_part1-of-6_IDA-001-050.zip` | IDA-001–050 | 2.39 GB | `623acc17387c3dd91f046fef123c9849` |
+| 2 | `IDA-THL-Segmented-Cells-02-2026_part2-of-6_IDA-051-101.zip` | IDA-051–101 | 2.36 GB | `d293b616cebf3e4849cc85441c3f5224` |
+| 3 | `IDA-THL-Segmented-Cells-02-2026_part3-of-6_IDA-102-151.zip` | IDA-102–151 | 2.38 GB | `61ea948e880c28548524755100cb051a` |
+| 4 | `IDA-THL-Segmented-Cells-02-2026_part4-of-6_THL-001-047.zip` | THL-001–047 | 2.73 GB | `2c9d0d3048eb57aa7434f6e190acf4b4` |
+| 5 | `IDA-THL-Segmented-Cells-02-2026_part5-of-6_THL-048-090.zip` | THL-048–090 | 2.69 GB | `bf8ca7011a4bb999ad30129546f05577` |
+| 6 | `IDA-THL-Segmented-Cells-02-2026_part6-of-6_THL-091-140.zip` | THL-091–140 | 2.72 GB | `d0fbc0da6bcedfac896a9647f69b30c1` |
+
+Together the parts hold the same 261,087 files as the single archive `IDA-THL-Segmented-Cells-02-2026.zip` (MD5 `d2f896c59984890baaeb5e21253061e0`), verified file by file.
+
+The release follows a Class → Patient → Slide → Cell schema:
+
+```
+IDA-THL-Segmented-Cells-02-2026/
+├── 0/                      # IDA
+│   └── IDA-001/cells/DSC10132/IDA-001-DSC10132-001.png
+└── 1/                      # THL
+    └── THL-001/cells/...
+```
+
+The patient IDs in the paper's figures (e.g. IDA-063, THL-097) are the folder names of this release.
+
+Nine patients were imaged in more than one acquisition batch and so have more than one folder. The figshare description lists them. For strictly patient-level splits, group those folders together.
+
+**Folder layout used by the code.** The experiments were run on the original, non-anonymized tree, which is organized as `<batch>/<class>/<patient>/normalized/<slide>-cells-256/*.png`. The figshare release was generated from that tree by `tcg_1.py` (`RUN.PUBLISH_DATASET`).
+
+To run the code on the figshare release, adapt the scanner in `Share/mygears.py` (the `glob_pattern` and the path-part indices) to the `<class>/<patient>/cells/<slide>/*.png` layout. The patient ID is then the folder name.
 
 ## R-MIL Pipeline Execution
 
