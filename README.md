@@ -1,10 +1,15 @@
-# A Geometry-Constrained Multiple-Instance Learning Pipeline with Clinical Abstention for Differentiating Iron Deficiency Anemia and Thalassemia on Peripheral Blood Smears
+# Geometry-Constrained AI Pipeline with Clinical Abstention for Differentiating Anemia Subtypes
 
 This repository contains the official implementation of the hybrid AI framework integrating **Riemann Geometry-inspired Multiple Instance Learning (R-MIL)**. The system is designed to provide aleatoric noise protection and clinical abstention (triage) for the automated screening of Iron Deficiency Anemia (IDA) and Thalassemia (THL).
 
-<!-- > **Paper Title:** Geometry-Constrained AI Pipeline with Clinical Abstention for Differentiating Anemia Subtypes  -->
-> **Journal:** Applied Intelligence (Accepted)  
-> **Citation:** *pending*
+**Paper Title:** A Geometry-Constrained Multiple-Instance Learning Pipeline with Clinical Abstention for Differentiating Iron Deficiency Anemia and Thalassemia on Peripheral Blood Smears
+
+**Journal:** Applied Intelligence (Accepted)  
+
+**Citation:** pending
+
+**Plase also cite:** Damkliang, K., Chumnaul, J., Suwanno, K. et al. Quantum-inspired entanglement and uncertainty quantification for strict double-verification triage in clinical hematopathology. Sci Rep (2026). [https://doi.org/10.1038/s41598-026-61933-5](https://doi.org/10.1038/s41598-026-61933-5)
+
 
 ## Abstract
 
